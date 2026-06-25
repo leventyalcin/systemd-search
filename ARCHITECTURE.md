@@ -120,7 +120,7 @@ The script is named `systemd-search` (no `.py` extension) to be installable as a
 
 ### Molecule integration tests (`molecule/`)
 
-Two scenarios — `rocky` (Rocky Linux 9) and `debian` (Debian 12) — each spin up a systemd-capable Docker container, install the tool, deploy six fixture units, and run the full verify suite against a live systemd.
+Two scenarios — `rocky` and `debian` — each define two platforms so a single `molecule test` run covers both versions of the distribution simultaneously. `rocky` tests Rocky Linux 9 and 10; `debian` tests Debian 12 and 13.
 
 The fixture units are designed to exercise every code path:
 
@@ -190,10 +190,10 @@ Tags carry no `v` prefix. The tag `1.2.0` produces the release `systemd-search 1
 The `release` job downloads all artifacts uploaded by `package` and `executable`, then calls `gh release create` with the tag name. Each release includes:
 
 - `systemd-search` — plain Python executable, runs on any distro with Python 3.9+
-- `systemd-search-rocky9.noarch.rpm` + `.sha256`
-- `systemd-search-rocky10.noarch.rpm` + `.sha256`
-- `systemd-search-debian12.all.deb` + `.sha256`
-- `systemd-search-debian13.all.deb` + `.sha256`
+- `systemd-search-<version>-rocky9.noarch.rpm` + `.sha256`
+- `systemd-search-<version>-rocky10.noarch.rpm` + `.sha256`
+- `systemd-search-<version>-debian12.all.deb` + `.sha256`
+- `systemd-search-<version>-debian13.all.deb` + `.sha256`
 
 ### Branch protection
 

@@ -40,6 +40,6 @@ EOF
 rpmbuild -bb /root/rpmbuild/SPECS/systemd-search.spec
 
 RPM=$(find /root/rpmbuild/RPMS/noarch -name "*.rpm" | head -1)
-DEST="/workspace/systemd-search-${TARGET}.noarch.rpm"
+DEST="/workspace/systemd-search-${VERSION}-${TARGET}.noarch.rpm"
 cp "$RPM" "$DEST"
 echo "Built: $DEST"

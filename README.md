@@ -494,14 +494,11 @@ The unit tests target **Python 3.9** — the system Python on Rocky Linux 9. Tha
 Molecule tests install the tool inside real systemd containers and exercise every search combination against live units. Docker must be running.
 
 ```bash
-# Rocky Linux 9
-molecule test -s rocky
-
-# Debian 12
-molecule test -s debian
+molecule test -s rocky   # tests Rocky Linux 9 and 10 in parallel
+molecule test -s debian  # tests Debian 12 and 13 in parallel
 ```
 
-The scenarios use `geerlingguy/docker-rockylinux9-ansible` and `geerlingguy/docker-debian12-ansible`, which are systemd-capable images built for this kind of testing.
+The scenarios use the `geerlingguy/docker-*-ansible` images, which are systemd-capable images built for this kind of testing.
 
 ### Updating dependencies
 

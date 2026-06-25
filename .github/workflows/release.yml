@@ -70,7 +70,7 @@ jobs:
 
       - name: Compute SHA-256 checksum
         run: |
-          pkg=$(ls systemd-search-${{ matrix.target }}.*)
+          pkg=$(ls systemd-search-*-${{ matrix.target }}.*)
           sha256sum "$pkg" > "${pkg}.sha256"
           cat "${pkg}.sha256"
 
@@ -78,7 +78,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: pkg-${{ matrix.target }}
-          path: systemd-search-${{ matrix.target }}.*
+          path: systemd-search-*-${{ matrix.target }}.*
           if-no-files-found: error
 
   # ── Executable artifact ───────────────────────────────────────────────────────
@@ -126,7 +126,8 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           TAG=${GITHUB_REF#refs/tags/}
+          sed "s/{{VERSION}}/$TAG/g" scripts/release-notes.md > /tmp/release-notes.md
           gh release create "$TAG" \
             --title "systemd-search ${TAG}" \
-            --notes-file scripts/release-notes.md \
+            --notes-file /tmp/release-notes.md \
             dist/*
