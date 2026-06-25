@@ -29,6 +29,6 @@ Description: Query systemd units by custom section labels
  and enabled/active state.
 EOF
 
-DEST="/workspace/systemd-search-${TARGET}.all.deb"
+DEST="/workspace/systemd-search-${VERSION}-${TARGET}.all.deb"
 dpkg-deb --build "${PKG_ROOT}" "$DEST"
 echo "Built: $DEST"
