@@ -1,0 +1,15 @@
+[Unit]
+Description=Fixture Multi-Label Service A
+
+[Service]
+Type=oneshot
+ExecStart=/bin/true
+RemainAfterExit=yes
+
+[X-Labels]
+Project=myapp
+Domain=foo
+Env=prod
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,24 @@
+---
+# Runs on every pull request and on direct pushes to master/main.
+# Branch protection must require all jobs from the called tests workflow to pass.
+#
+# Configure under: Settings → Branches → Branch protection rules → master
+# Required status checks:
+#   - Tests / Unit tests
+#   - Tests / Molecule — rocky
+#   - Tests / Molecule — debian
+
+name: PR
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+
+concurrency:
+  group: pr-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  tests:
+    uses: ./.github/workflows/tests.yml

@@ -1,0 +1,35 @@
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+
+# Virtual environments
+# Pipenv creates .venv when PIPENV_VENV_IN_PROJECT=1 is set
+.venv/
+venv/
+env/
+
+# Pipfile.lock is committed — do not add it here
+
+# Molecule ephemeral state
+molecule/**/molecule.yml.bak
+.molecule/
+
+# Built packages (produced by CI, not committed)
+*.rpm
+*.deb
+*.sha256
+
+# Staged binary copied by molecule prepare playbook
+molecule/common/files/systemd-search
+
+# macOS
+.DS_Store
+
+# Editors
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.claude/settings.local.json

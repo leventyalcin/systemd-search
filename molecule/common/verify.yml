@@ -1,0 +1,458 @@
+---
+- name: Verify
+  hosts: all
+  gather_facts: false
+
+  tasks:
+    # === JSON OUTPUT ===================================================
+
+    - name: Run systemd-search --json
+      ansible.builtin.command: systemd-search --json
+      register: result_json
+      changed_when: false
+
+    - name: Parse JSON output
+      ansible.builtin.set_fact:
+        json_output: "{{ result_json.stdout | from_json }}"
+
+    - name: Assert JSON output is a list
+      ansible.builtin.assert:
+        that:
+          - json_output is sequence
+        fail_msg: "--json must return a JSON array, got: {{ result_json.stdout }}"
+
+    - name: Assert every JSON entry has the required keys
+      ansible.builtin.assert:
+        that:
+          - item.name is defined
+          - item.enabled is defined
+          - item['is-active'] is defined
+          - item.labels is defined
+        fail_msg: "JSON entry missing required keys: {{ item }}"
+      loop: "{{ json_output }}"
+
+    - name: Assert only fixture services appear in JSON output
+      ansible.builtin.assert:
+        that:
+          - json_output | map(attribute='name') | reject('search', 'fixture-') | list | length == 0
+        fail_msg: >
+          --json must only return units with [X-Labels].
+          Got unexpected entries: {{
+            json_output | map(attribute='name') | reject('search', 'fixture-') | list }}
+
+    - name: Assert fixture-multi-a is present with correct values
+      ansible.builtin.assert:
+        that:
+          - json_output | selectattr('name', 'equalto', 'fixture-multi-a.service') | list | length == 1
+          - (json_output | selectattr('name', 'equalto', 'fixture-multi-a.service') | first).enabled == true
+          - (json_output | selectattr('name', 'equalto', 'fixture-multi-a.service') | first)['is-active'] == true
+          - (json_output | selectattr('name', 'equalto', 'fixture-multi-a.service') | first).labels.Project == 'myapp'
+          - (json_output | selectattr('name', 'equalto', 'fixture-multi-a.service') | first).labels.Domain == 'foo'
+        fail_msg: "fixture-multi-a.service JSON entry is wrong: {{ json_output }}"
+
+    - name: Assert fixture-disabled has enabled=false
+      ansible.builtin.assert:
+        that:
+          - json_output | selectattr('name', 'equalto', 'fixture-disabled.service') | list | length == 1
+          - (json_output | selectattr('name', 'equalto', 'fixture-disabled.service') | first).enabled == false
+        fail_msg: "fixture-disabled.service should have enabled=false in JSON output"
+
+    - name: Assert fixture-failing has is-active=false
+      ansible.builtin.assert:
+        that:
+          - json_output | selectattr('name', 'equalto', 'fixture-failing.service') | list | length == 1
+          - (json_output | selectattr('name', 'equalto', 'fixture-failing.service') | first)['is-active'] == false
+        fail_msg: "fixture-failing.service should have is-active=false in JSON output"
+
+    - name: Run --json with a label filter
+      ansible.builtin.command: systemd-search --json --label Domain=foo
+      register: result_json_filtered
+      changed_when: false
+
+    - name: Assert filtered JSON contains only fixture-multi-a
+      ansible.builtin.set_fact:
+        json_filtered: "{{ result_json_filtered.stdout | from_json }}"
+
+    - name: Assert only one entry in filtered JSON result
+      ansible.builtin.assert:
+        that:
+          - json_filtered | length == 1
+          - (json_filtered | first).name == 'fixture-multi-a.service'
+        fail_msg: "--json --label Domain=foo should return only fixture-multi-a.service, got: {{ result_json_filtered.stdout }}"
+
+    # ------------------------------------------------------------------
+    # Helper macro: run systemd-search and register result
+    # ------------------------------------------------------------------
+
+    # === SCOPE GUARD — only [X-Labels] units, always ==================
+
+    # With no flags at all, only fixture services (which carry [X-Labels])
+    # must appear. System services without the section must be invisible.
+    - name: Run systemd-search with no flags
+      ansible.builtin.command: systemd-search
+      register: result_bare
+      changed_when: false
+
+    - name: Assert no system unit without X-Labels appears in bare run
+      ansible.builtin.assert:
+        that:
+          - "result_bare.stdout_lines
+             | reject('search', 'fixture-')
+             | list | length == 0"
+        fail_msg: >
+          systemd-search with no flags must only return units with [X-Labels].
+          Got unexpected lines: {{
+            result_bare.stdout_lines
+            | reject('search', 'fixture-') | list }}
+
+    # --verbose alone must behave identically — no unlabelled units.
+    - name: Run systemd-search --verbose with no other filters
+      ansible.builtin.command: systemd-search --verbose
+      register: result_verbose_only
+      changed_when: false
+
+    - name: Assert no unit without X-Labels leaks through verbose
+      ansible.builtin.assert:
+        that:
+          - "result_verbose_only.stdout_lines
+             | reject('search', 'fixture-')
+             | list | length == 0"
+        fail_msg: >
+          --verbose alone should only return units with [X-Labels].
+          Got unexpected lines: {{
+            result_verbose_only.stdout_lines
+            | reject('search', 'fixture-') | list }}
+
+    # === SUCCESSFUL SEARCHES ==========================================
+
+    # 1. Shared key (Project) across all services (default --type service)
+    - name: Search all services with shared key Project
+      ansible.builtin.command: systemd-search --label Project
+      register: result_shared_key
+      changed_when: false
+
+    - name: Assert all fixture services appear for shared key
+      ansible.builtin.assert:
+        that:
+          - "'fixture-single.service' in result_shared_key.stdout_lines"
+          - "'fixture-multi-a.service' in result_shared_key.stdout_lines"
+          - "'fixture-disabled.service' in result_shared_key.stdout_lines"
+          - "'fixture-failing.service' in result_shared_key.stdout_lines"
+        fail_msg: "Expected all four fixture services in output, got: {{ result_shared_key.stdout }}"
+
+    - name: Assert timer and path do NOT appear in service-only search
+      ansible.builtin.assert:
+        that:
+          - "'fixture-multi.timer' not in result_shared_key.stdout_lines"
+          - "'fixture-multi.path' not in result_shared_key.stdout_lines"
+        fail_msg: "Timer/path should not appear in default --type service search"
+
+    # 1b. --verbose shows each service with its own distinct Project value
+    - name: Search all services with shared key Project in verbose mode
+      ansible.builtin.command: systemd-search --verbose --type service --label Project
+      register: result_shared_key_verbose
+      changed_when: false
+
+    - name: Assert fixture-single shows its own project value in verbose output
+      ansible.builtin.assert:
+        that:
+          - "result_shared_key_verbose.stdout_lines | select('search', 'fixture-single.service') | select('search', 'Project=single-app') | list | length == 1"
+        fail_msg: "Expected 'fixture-single.service ... Project=single-app' in verbose output, got: {{ result_shared_key_verbose.stdout }}"
+
+    - name: Assert fixture-multi-a shows its own project value in verbose output
+      ansible.builtin.assert:
+        that:
+          - "result_shared_key_verbose.stdout_lines | select('search', 'fixture-multi-a.service') | select('search', 'Project=myapp') | list | length == 1"
+        fail_msg: "Expected 'fixture-multi-a.service ... Project=myapp' in verbose output, got: {{ result_shared_key_verbose.stdout }}"
+
+    # 2. Multi-label key=value — all types (service, timer, path)
+    - name: Search Domain=foo across service timer path
+      ansible.builtin.command: >
+        systemd-search --label Domain=foo --type service --type timer --type path
+      register: result_multi_all_types
+      changed_when: false
+
+    - name: Assert service timer and path all appear
+      ansible.builtin.assert:
+        that:
+          - "'fixture-multi-a.service' in result_multi_all_types.stdout_lines"
+          - "'fixture-multi.timer' in result_multi_all_types.stdout_lines"
+          - "'fixture-multi.path' in result_multi_all_types.stdout_lines"
+        fail_msg: "Expected service, timer, path for Domain=foo, got: {{ result_multi_all_types.stdout }}"
+
+    - name: Assert single-label service does not appear (no Domain key)
+      ansible.builtin.assert:
+        that:
+          - "'fixture-single.service' not in result_multi_all_types.stdout_lines"
+        fail_msg: "fixture-single.service should not appear (has no Domain label)"
+
+    # 3. Multi-label key=value with --type service only
+    - name: Search Domain=foo --type service only
+      ansible.builtin.command: systemd-search --label Domain=foo --type service
+      register: result_multi_service_only
+      changed_when: false
+
+    - name: Assert only the multi-label service appears
+      ansible.builtin.assert:
+        that:
+          - "'fixture-multi-a.service' in result_multi_service_only.stdout_lines"
+          - "'fixture-multi.timer' not in result_multi_service_only.stdout_lines"
+          - "'fixture-multi.path' not in result_multi_service_only.stdout_lines"
+        fail_msg: "Only fixture-multi-a.service expected, got: {{ result_multi_service_only.stdout }}"
+
+    # 4. Multi-label key=value with --type service --type timer
+    - name: Search Domain=foo --type service --type timer
+      ansible.builtin.command: >
+        systemd-search --label Domain=foo --type service --type timer
+      register: result_multi_svc_timer
+      changed_when: false
+
+    - name: Assert service and timer appear but not path
+      ansible.builtin.assert:
+        that:
+          - "'fixture-multi-a.service' in result_multi_svc_timer.stdout_lines"
+          - "'fixture-multi.timer' in result_multi_svc_timer.stdout_lines"
+          - "'fixture-multi.path' not in result_multi_svc_timer.stdout_lines"
+        fail_msg: "Expected service+timer only, got: {{ result_multi_svc_timer.stdout }}"
+
+    # 5. Not-enabled service found with --disabled
+    - name: Search for the disabled service using --disabled
+      ansible.builtin.command: >
+        systemd-search --label Visibility=disabled-only --disabled
+      register: result_disabled
+      changed_when: false
+
+    - name: Assert disabled fixture appears
+      ansible.builtin.assert:
+        that:
+          - "'fixture-disabled.service' in result_disabled.stdout_lines"
+        fail_msg: "fixture-disabled.service should appear with --disabled, got: {{ result_disabled.stdout }}"
+
+    - name: Assert disabled service does NOT appear when filtering for enabled units
+      ansible.builtin.command: >
+        systemd-search --label Visibility=disabled-only --enabled
+      register: result_disabled_enabled_filter
+      changed_when: false
+      failed_when: false
+
+    - name: Disabled service absent when filtering for enabled units
+      ansible.builtin.assert:
+        that:
+          - "'fixture-disabled.service' not in result_disabled_enabled_filter.stdout_lines"
+        fail_msg: "fixture-disabled.service should not appear under --enabled filter, got: {{ result_disabled_enabled_filter.stdout }}"
+
+    # 6. Failed service — enabled but failed state
+    - name: Search for enabled failing service by its unique label
+      ansible.builtin.command: >
+        systemd-search --label Status=failing --enabled
+      register: result_failing
+      changed_when: false
+
+    - name: Assert failing service appears in enabled search
+      ansible.builtin.assert:
+        that:
+          - "'fixture-failing.service' in result_failing.stdout_lines"
+        fail_msg: "fixture-failing.service should appear as enabled even when failed, got: {{ result_failing.stdout }}"
+
+    # === EXCLUDE SEARCHES =============================================
+
+    # ── Negative search 1 ─────────────────────────────────────────────────────
+    # Units without [X-Labels] must never appear when --exclude is active.
+    # All four fixture services carry [X-Labels]; system units on the container
+    # do not.  Any non-fixture line in the output is a bug.
+    - name: Run an exclude search to collect all results
+      ansible.builtin.command: >
+        systemd-search --label Project --exclude Domain
+      register: result_exclude_no_unlabelled
+      changed_when: false
+
+    - name: Assert no unit without X-Labels appears in exclude results
+      ansible.builtin.assert:
+        that:
+          - "result_exclude_no_unlabelled.stdout_lines
+             | reject('search', 'fixture-')
+             | list | length == 0"
+        fail_msg: >
+          Units without [X-Labels] should never appear in exclude searches.
+          Got unexpected lines: {{
+            result_exclude_no_unlabelled.stdout_lines
+            | reject('search', 'fixture-') | list }}
+
+    # ── Negative search 2 ─────────────────────────────────────────────────────
+    # --exclude KEY (key-only) excludes every unit that carries that key.
+    # All four fixture services carry the Project key, so --exclude Project
+    # removes all of them and the output is empty.
+    - name: Exclude by key present in all fixture services returns nothing
+      ansible.builtin.command: systemd-search --exclude Project
+      register: result_exclude_universal_key
+      changed_when: false
+      failed_when: false
+
+    - name: Assert output is empty when excluded key exists in every unit
+      ansible.builtin.assert:
+        that:
+          - "result_exclude_universal_key.stdout | trim == ''"
+        fail_msg: >
+          --exclude Project should return nothing because every fixture service
+          carries the Project key. Got: {{ result_exclude_universal_key.stdout }}
+
+    # ── Negative search 3 ─────────────────────────────────────────────────────
+    # --exclude Project=myapp removes units where Project equals myapp.
+    # fixture-single has Project=single-app (value differs) → appears.
+    # fixture-multi-a, fixture-disabled, fixture-failing have Project=myapp → excluded.
+    - name: Exclude Project=myapp returns only fixture-single
+      ansible.builtin.command: systemd-search --exclude Project=myapp
+      register: result_exclude_project_myapp
+      changed_when: false
+
+    - name: Assert fixture-single appears (Project=single-app does not match exclude)
+      ansible.builtin.assert:
+        that:
+          - "'fixture-single.service' in result_exclude_project_myapp.stdout_lines"
+        fail_msg: >
+          fixture-single.service should appear (Project=single-app ≠ myapp).
+          Got: {{ result_exclude_project_myapp.stdout }}
+
+    - name: Assert fixture-multi-a is absent (Project=myapp matches exclude)
+      ansible.builtin.assert:
+        that:
+          - "'fixture-multi-a.service' not in result_exclude_project_myapp.stdout_lines"
+        fail_msg: >
+          fixture-multi-a.service should be excluded (Project=myapp).
+          Got: {{ result_exclude_project_myapp.stdout }}
+
+    - name: Assert fixture-disabled is absent (Project=myapp matches exclude)
+      ansible.builtin.assert:
+        that:
+          - "'fixture-disabled.service' not in result_exclude_project_myapp.stdout_lines"
+        fail_msg: >
+          fixture-disabled.service should be excluded (Project=myapp).
+          Got: {{ result_exclude_project_myapp.stdout }}
+
+    - name: Assert fixture-failing is absent (Project=myapp matches exclude)
+      ansible.builtin.assert:
+        that:
+          - "'fixture-failing.service' not in result_exclude_project_myapp.stdout_lines"
+        fail_msg: >
+          fixture-failing.service should be excluded (Project=myapp).
+          Got: {{ result_exclude_project_myapp.stdout }}
+
+    # ── Negative search 4 ─────────────────────────────────────────────────────
+    # Multiple --exclude filters: a unit is dropped if ANY filter matches.
+    # --exclude Project=single-app  →  removes fixture-single
+    # --exclude Domain=foo          →  removes fixture-multi-a (has Domain=foo)
+    # fixture-disabled:  Project=myapp, no Domain  →  neither filter hits  →  appears
+    # fixture-failing:   Project=myapp, no Domain  →  neither filter hits  →  appears
+    - name: Multiple excludes return only fixture-disabled and fixture-failing
+      ansible.builtin.command: >
+        systemd-search --exclude Project=single-app --exclude Domain=foo
+      register: result_exclude_multi
+      changed_when: false
+
+    - name: Assert fixture-disabled appears (matches no exclude condition)
+      ansible.builtin.assert:
+        that:
+          - "'fixture-disabled.service' in result_exclude_multi.stdout_lines"
+        fail_msg: >
+          fixture-disabled.service should appear (Project=myapp, no Domain).
+          Got: {{ result_exclude_multi.stdout }}
+
+    - name: Assert fixture-failing appears (matches no exclude condition)
+      ansible.builtin.assert:
+        that:
+          - "'fixture-failing.service' in result_exclude_multi.stdout_lines"
+        fail_msg: >
+          fixture-failing.service should appear (Project=myapp, no Domain).
+          Got: {{ result_exclude_multi.stdout }}
+
+    - name: Assert fixture-single is absent (Project=single-app matches first exclude)
+      ansible.builtin.assert:
+        that:
+          - "'fixture-single.service' not in result_exclude_multi.stdout_lines"
+        fail_msg: >
+          fixture-single.service should be excluded (Project=single-app).
+          Got: {{ result_exclude_multi.stdout }}
+
+    - name: Assert fixture-multi-a is absent (Domain=foo matches second exclude)
+      ansible.builtin.assert:
+        that:
+          - "'fixture-multi-a.service' not in result_exclude_multi.stdout_lines"
+        fail_msg: >
+          fixture-multi-a.service should be excluded (Domain=foo).
+          Got: {{ result_exclude_multi.stdout }}
+
+    # === UNSUCCESSFUL SEARCHES ========================================
+
+    # 7. Nonexistent label key — expect empty output
+    - name: Search for a label key that does not exist
+      ansible.builtin.command: systemd-search --label GhostKey
+      register: result_ghost_key
+      changed_when: false
+      failed_when: false
+
+    - name: Assert no output for nonexistent label key
+      ansible.builtin.assert:
+        that:
+          - "result_ghost_key.stdout | trim == ''"
+        fail_msg: "Expected empty output for nonexistent label, got: {{ result_ghost_key.stdout }}"
+
+    # 8. Existing key but nonexistent value — expect empty output
+    - name: Search for existing key with a value that matches nothing
+      ansible.builtin.command: systemd-search --label Project=nonexistent-value
+      register: result_wrong_value
+      changed_when: false
+      failed_when: false
+
+    - name: Assert no output for existing key with wrong value
+      ansible.builtin.assert:
+        that:
+          - "result_wrong_value.stdout | trim == ''"
+        fail_msg: "Expected empty output for Project=nonexistent-value, got: {{ result_wrong_value.stdout }}"
+
+    # 9. Correct label but wrong type — expect empty output
+    - name: Search for Project=myapp on socket type (none installed)
+      ansible.builtin.command: systemd-search --label Project=myapp --type socket
+      register: result_wrong_type
+      changed_when: false
+      failed_when: false
+
+    - name: Assert no output for correct label on wrong unit type
+      ansible.builtin.assert:
+        that:
+          - "result_wrong_type.stdout | trim == ''"
+        fail_msg: "Expected empty output for socket type search, got: {{ result_wrong_type.stdout }}"
+
+    # === EXIT CODE ON EMPTY RESULT ====================================
+
+    # When no units match, the exit code must be 1 so shell scripts can
+    # detect the empty case without parsing output.
+
+    - name: Empty text result exits with code 1
+      ansible.builtin.command: systemd-search --label GhostKey
+      register: result_exit_text
+      changed_when: false
+      failed_when: false
+
+    - name: Assert exit code 1 and empty stdout for text mode
+      ansible.builtin.assert:
+        that:
+          - result_exit_text.rc == 1
+          - result_exit_text.stdout | trim == ''
+        fail_msg: >
+          Expected rc=1 and empty output for a no-match text search.
+          Got rc={{ result_exit_text.rc }}, stdout={{ result_exit_text.stdout }}
+
+    - name: Empty JSON result exits with code 1
+      ansible.builtin.command: systemd-search --json --label GhostKey
+      register: result_exit_json
+      changed_when: false
+      failed_when: false
+
+    - name: Assert exit code 1 and empty JSON array for JSON mode
+      ansible.builtin.assert:
+        that:
+          - result_exit_json.rc == 1
+          - result_exit_json.stdout | from_json | length == 0
+        fail_msg: >
+          Expected rc=1 and [] for a no-match JSON search.
+          Got rc={{ result_exit_json.rc }}, stdout={{ result_exit_json.stdout }}

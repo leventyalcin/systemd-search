@@ -1,0 +1,75 @@
+---
+- name: Converge
+  hosts: all
+  gather_facts: false
+
+  tasks:
+    - name: Install systemd-search
+      ansible.builtin.copy:
+        src: "{{ playbook_dir }}/files/systemd-search"
+        dest: /usr/bin/systemd-search
+        mode: "0755"
+
+    - name: Copy fixture unit files
+      ansible.builtin.copy:
+        src: "{{ playbook_dir }}/files/{{ item }}"
+        dest: /etc/systemd/system/{{ item }}
+        mode: "0644"
+      loop:
+        - fixture-single.service
+        - fixture-multi-a.service
+        - fixture-multi.timer
+        - fixture-multi.path
+        - fixture-disabled.service
+        - fixture-failing.service
+
+    - name: Reload systemd
+      ansible.builtin.systemd:
+        daemon_reload: true
+
+    # --- fixture-single: enabled, not explicitly started (inactive/dead) ---
+    - name: Enable fixture-single.service (not started)
+      ansible.builtin.systemd:
+        name: fixture-single.service
+        enabled: true
+        state: stopped
+
+    # --- fixture-multi-a: enabled and started (active) ---
+    - name: Enable and start fixture-multi-a.service
+      ansible.builtin.systemd:
+        name: fixture-multi-a.service
+        enabled: true
+        state: started
+
+    # --- fixture-multi.timer: enabled and started (active) ---
+    - name: Enable and start fixture-multi.timer
+      ansible.builtin.systemd:
+        name: fixture-multi.timer
+        enabled: true
+        state: started
+
+    # --- fixture-multi.path: enabled and started (active, watching) ---
+    - name: Enable and start fixture-multi.path
+      ansible.builtin.systemd:
+        name: fixture-multi.path
+        enabled: true
+        state: started
+
+    # --- fixture-disabled: installed only, NOT enabled, NOT started ---
+    - name: Ensure fixture-disabled.service is disabled and stopped
+      ansible.builtin.systemd:
+        name: fixture-disabled.service
+        enabled: false
+        state: stopped
+
+    # --- fixture-failing: enabled, started — will enter failed state ---
+    - name: Enable fixture-failing.service
+      ansible.builtin.systemd:
+        name: fixture-failing.service
+        enabled: true
+
+    - name: Start fixture-failing.service (expected to fail)
+      ansible.builtin.systemd:
+        name: fixture-failing.service
+        state: started
+      ignore_errors: true

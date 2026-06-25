@@ -1,0 +1,14 @@
+[Unit]
+Description=Fixture Multi-Label Timer
+
+[Timer]
+OnBootSec=999h
+Unit=fixture-multi-a.service
+
+[X-Labels]
+Project=myapp
+Domain=foo
+Env=prod
+
+[Install]
+WantedBy=timers.target

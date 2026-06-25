@@ -1,0 +1,16 @@
+[[source]]
+url = "https://pypi.org/simple"
+verify_ssl = true
+name = "pypi"
+
+[packages]
+# systemd-search itself has no runtime dependencies
+
+[dev-packages]
+pytest = ">=8.0"
+molecule = ">=6.0"
+molecule-plugins = {extras = ["docker"], version = ">=23.5"}
+ansible-core = ">=2.15,<2.16"
+
+[requires]
+python_version = "3.9"

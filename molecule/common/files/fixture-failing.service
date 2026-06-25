@@ -1,0 +1,13 @@
+[Unit]
+Description=Fixture Failing Service
+
+[Service]
+Type=oneshot
+ExecStart=/bin/false
+
+[X-Labels]
+Project=myapp
+Status=failing
+
+[Install]
+WantedBy=multi-user.target
