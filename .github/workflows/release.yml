@@ -45,10 +45,10 @@ jobs:
       matrix:
         include:
           - target: rocky9
-            image: rockylinux:9
+            image: rockylinux/rockylinux:9
             script: build-rpm.sh
           - target: rocky10
-            image: rockylinux:10
+            image: rockylinux/rockylinux:10
             script: build-rpm.sh
           - target: debian12
             image: debian:12
