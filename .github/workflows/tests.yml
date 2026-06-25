@@ -17,7 +17,12 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.9"
-          cache: pipenv
+
+      - name: Cache pipenv virtualenv
+        uses: actions/cache@v4
+        with:
+          path: ~/.local/share/virtualenvs
+          key: pipenv-${{ runner.os }}-${{ hashFiles('Pipfile') }}
 
       - name: Install pipenv
         run: pip install pipenv
@@ -42,7 +47,12 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.9"
-          cache: pipenv
+
+      - name: Cache pipenv virtualenv
+        uses: actions/cache@v4
+        with:
+          path: ~/.local/share/virtualenvs
+          key: pipenv-${{ runner.os }}-${{ hashFiles('Pipfile') }}
 
       - name: Install pipenv
         run: pip install pipenv
