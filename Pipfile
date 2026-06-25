@@ -10,7 +10,7 @@ name = "pypi"
 pytest = ">=8.0"
 molecule = ">=6.0"
 molecule-plugins = {extras = ["docker"], version = ">=23.5"}
-ansible-core = ">=2.16"
+ansible-core = ">=2.15,<2.16"
 
 [requires]
 python_version = "3.9"
