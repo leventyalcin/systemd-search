@@ -508,13 +508,13 @@ The scenarios use `geerlingguy/docker-rockylinux9-ansible` and `geerlingguy/dock
 ```bash
 # Add or upgrade a dev dependency
 pipenv install --dev some-package
-
-# Regenerate requirements-test.txt kept for CI
-pipenv requirements --dev > requirements-test.txt
 ```
 
 ### CI/CD
 
-CI uses `requirements-test.txt` directly with pip — no Pipenv overhead in the pipeline. Keep it in sync with the `Pipfile` by running the `pipenv requirements` command above after any dependency change.
+Pull requests must pass unit tests and both molecule scenarios before merging. Pushing a semver tag triggers the packaging and release jobs, which build and publish a GitHub Release with RPM and DEB packages for each supported distribution. The tag is the version — there is no separate version file.
 
-Pull requests must pass unit tests and both molecule scenarios before merging. Pushing a semver tag (e.g. `git tag 1.2.0 && git push origin 1.2.0`) triggers the packaging and release jobs, which build and publish a GitHub Release with RPM and DEB packages for each supported distribution.
+```bash
+git tag 1.2.0
+git push origin 1.2.0
+```

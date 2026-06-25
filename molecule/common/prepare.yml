@@ -1,0 +1,13 @@
+---
+# Copies the systemd-search binary from the project root into the files/
+# directory so converge.yml can find it relative to the playbook.
+- name: Prepare
+  hosts: localhost
+  gather_facts: false
+
+  tasks:
+    - name: Stage systemd-search binary into molecule files dir
+      ansible.builtin.copy:
+        src: "{{ lookup('env', 'MOLECULE_PROJECT_DIRECTORY') }}/systemd-search"
+        dest: "{{ playbook_dir }}/files/systemd-search"
+        mode: "0755"

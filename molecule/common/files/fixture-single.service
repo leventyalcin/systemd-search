@@ -1,0 +1,13 @@
+[Unit]
+Description=Fixture Single Label Service
+
+[Service]
+Type=oneshot
+ExecStart=/bin/true
+RemainAfterExit=yes
+
+[X-Labels]
+Project=single-app
+
+[Install]
+WantedBy=multi-user.target

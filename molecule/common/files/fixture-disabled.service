@@ -1,0 +1,14 @@
+[Unit]
+Description=Fixture Disabled Service
+
+[Service]
+Type=oneshot
+ExecStart=/bin/true
+RemainAfterExit=yes
+
+[X-Labels]
+Project=myapp
+Visibility=disabled-only
+
+[Install]
+WantedBy=multi-user.target

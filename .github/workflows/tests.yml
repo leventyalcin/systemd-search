@@ -1,0 +1,58 @@
+---
+# Reusable workflow — unit tests + molecule integration tests.
+# Called by pr.yml and release.yml. Never triggered directly.
+
+name: Tests
+
+on:
+  workflow_call:
+
+jobs:
+  unit-tests:
+    name: Unit tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.9"
+          cache: pipenv
+
+      - name: Install pipenv
+        run: pip install pipenv
+
+      - name: Install dependencies
+        run: pipenv install --dev
+
+      - name: Run unit tests
+        run: pipenv run pytest tests/ -v
+
+  molecule:
+    name: Molecule — ${{ matrix.scenario }}
+    runs-on: ubuntu-latest
+    needs: unit-tests
+    strategy:
+      fail-fast: false
+      matrix:
+        scenario: [rocky, debian]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.9"
+          cache: pipenv
+
+      - name: Install pipenv
+        run: pip install pipenv
+
+      - name: Install dependencies
+        run: pipenv install --dev
+
+      - name: Run molecule scenario
+        run: pipenv run molecule test -s ${{ matrix.scenario }}
+        env:
+          MOLECULE_PROJECT_DIRECTORY: ${{ github.workspace }}
+          PY_COLORS: "1"
+          ANSIBLE_FORCE_COLOR: "1"
