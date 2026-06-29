@@ -5,6 +5,9 @@ set -euo pipefail
 
 TARGET=${1:?Usage: build-rpm.sh <target> <version>}
 VERSION=${2:?Usage: build-rpm.sh <target> <version>}
+# RPM forbids hyphens in Version; semver pre-release separator becomes tilde
+# (tilde sorts before the bare version in RPM, matching semver semantics).
+RPM_VERSION="${VERSION//-/\~}"
 
 dnf install -y rpm-build python3 --quiet --setopt=install_weak_deps=False
 
@@ -12,7 +15,7 @@ mkdir -p /root/rpmbuild/{BUILD,RPMS,SOURCES,SPECS,SRPMS}
 
 cat > /root/rpmbuild/SPECS/systemd-search.spec << EOF
 Name:           systemd-search
-Version:        ${VERSION}
+Version:        ${RPM_VERSION}
 Release:        1%{?dist}
 Summary:        Query systemd units by custom section labels
 License:        MIT
@@ -33,7 +36,7 @@ install -m 0755 /workspace/systemd-search %{buildroot}%{_bindir}/systemd-search
 %{_bindir}/systemd-search
 
 %changelog
-* $(date '+%a %b %d %Y') CI Build <noreply@github.com> - ${VERSION}-1
+* $(date '+%a %b %d %Y') CI Build <noreply@github.com> - ${RPM_VERSION}-1
 - Automated package build
 EOF
 
