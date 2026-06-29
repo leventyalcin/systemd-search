@@ -19,6 +19,12 @@ molecule/**/molecule.yml.bak
 *.rpm
 *.deb
 *.sha256
+dist/
+*.egg-info/
+*.whl
+
+# Standalone zipapp versioned executables
+systemd-search-[0-9]*
 
 # Staged binary copied by molecule prepare playbook
 molecule/common/files/systemd-search

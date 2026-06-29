@@ -1,0 +1,36 @@
+[build-system]
+requires = ["setuptools>=68", "setuptools-scm>=8"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "systemd-search"
+dynamic = ["version"]
+description = "Query systemd units by custom section labels"
+readme = "README.md"
+license = {text = "Apache-2.0"}
+requires-python = ">=3.9"
+keywords = ["systemd", "systemctl", "units", "labels", "search"]
+classifiers = [
+    "License :: OSI Approved :: Apache Software License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.9",
+    "Operating System :: POSIX :: Linux",
+    "Topic :: System :: Systems Administration",
+    "Environment :: Console",
+]
+
+[project.scripts]
+systemd-search = "systemd_search:main"
+
+[project.urls]
+Repository = "https://github.com/leventyalcin/systemd-search"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools_scm]
+# Derives version from git tags. Tag 1.2.3 → package version 1.2.3.
+# No local dirty suffixes on release builds; pre-release tags (1.2.0-beta.1)
+# are passed through as-is after stripping the semver hyphen to PEP 440 form.
+version_scheme = "no-guess-dev"
+local_scheme = "no-local-version"

@@ -49,34 +49,49 @@ Any section name starting with `X-` is valid. The default section `systemd-searc
 
 ## Installation
 
+### pip
+
+The simplest installation on any system with Python 3.9+:
+
+```bash
+pip install systemd-search
+```
+
+For a user-local install without root:
+
+```bash
+pip install --user systemd-search
+```
+
+### From GitHub Releases
+
+Each release ships a self-contained zipapp executable, native packages, and checksums:
+
+```bash
+# Self-contained zipapp — runs on any host with Python 3.9+, no pip needed
+curl -LO https://github.com/leventyalcin/systemd-search/releases/latest/download/systemd-search-1.0.0
+chmod +x systemd-search-1.0.0
+sudo mv systemd-search-1.0.0 /usr/local/bin/systemd-search
+
+# RPM (Rocky Linux 9)
+sudo rpm -i systemd-search-1.0.0-rocky9.noarch.rpm
+
+# DEB (Debian 12)
+sudo dpkg -i systemd-search-1.0.0-debian12.all.deb
+
+# Verify checksum before installing
+sha256sum -c systemd-search-1.0.0-rocky9.noarch.rpm.sha256
+```
+
+### Manual
+
 Copy the script to any directory on the system `PATH`:
 
 ```bash
 sudo cp systemd-search /usr/local/bin/systemd-search
 ```
 
-Or into a user-local bin directory:
-
-```bash
-cp systemd-search ~/.local/bin/systemd-search
-```
-
 **Requirements:** Python 3.9+ with no third-party packages. On Rocky Linux 9 this is the system default Python and requires no additional installation.
-
-### From GitHub Releases
-
-Each release ships native packages and a standalone executable:
-
-```bash
-# RPM (Rocky Linux 9)
-sudo rpm -i systemd-search-rocky9.noarch.rpm
-
-# DEB (Debian 12)
-sudo dpkg -i systemd-search-debian12.all.deb
-
-# Verify checksum before installing
-sha256sum -c systemd-search-rocky9.noarch.rpm.sha256
-```
 
 ## Usage
 
@@ -509,7 +524,7 @@ pipenv install --dev some-package
 
 ### CI/CD
 
-Pull requests must pass unit tests and both molecule scenarios before merging. Pushing a semver tag triggers the packaging and release jobs, which build and publish a GitHub Release with RPM and DEB packages for each supported distribution. The tag is the version — there is no separate version file.
+Pull requests must pass unit tests and both molecule scenarios before merging. Pushing a semver tag triggers the packaging and release jobs, which build RPM and DEB packages, publish the wheel to PyPI, and create a GitHub Release. The tag is the version — there is no separate version file.
 
 ```bash
 git tag 1.2.0
