@@ -5,6 +5,8 @@ set -euo pipefail
 
 TARGET=${1:?Usage: build-deb.sh <target> <version>}
 VERSION=${2:?Usage: build-deb.sh <target> <version>}
+# Debian uses ~ as the pre-release separator (sorts before the bare release).
+DEB_VERSION="${VERSION//-/\~}"
 
 export DEBIAN_FRONTEND=noninteractive
 apt-get update -qq
@@ -18,7 +20,7 @@ chmod 755 "${PKG_ROOT}/usr/bin/systemd-search"
 
 cat > "${PKG_ROOT}/DEBIAN/control" << EOF
 Package: systemd-search
-Version: ${VERSION}
+Version: ${DEB_VERSION}
 Architecture: all
 Maintainer: systemd-search contributors <noreply@github.com>
 Depends: python3
