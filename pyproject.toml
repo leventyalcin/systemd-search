@@ -32,5 +32,7 @@ where = ["src"]
 # Derives version from git tags. Tag 1.2.3 → package version 1.2.3.
 # No local dirty suffixes on release builds; pre-release tags (1.2.0-beta.1)
 # are passed through as-is after stripping the semver hyphen to PEP 440 form.
+# fallback_version is used when git is unavailable or has no tags (e.g. CI on a PR).
 version_scheme = "no-guess-dev"
 local_scheme = "no-local-version"
+fallback_version = "0.0.0"

@@ -1,13 +1,22 @@
 ---
-# Copies the systemd-search binary from the project root into the files/
-# directory so converge.yml can find it relative to the playbook.
+# Builds a self-contained zipapp from the package source and stages it into
+# files/ so converge.yml can deploy it. The zipapp embeds the systemd_search
+# package so the deployed binary has no external dependencies.
 - name: Prepare
   hosts: localhost
   gather_facts: false
 
   tasks:
-    - name: Stage systemd-search binary into molecule files dir
-      ansible.builtin.copy:
-        src: "{{ lookup('env', 'MOLECULE_PROJECT_DIRECTORY') }}/systemd-search"
-        dest: "{{ playbook_dir }}/files/systemd-search"
-        mode: "0755"
+    - name: Build self-contained systemd-search zipapp
+      ansible.builtin.shell: |
+        set -e
+        STAGE=$(mktemp -d)
+        trap 'rm -rf "$STAGE"' EXIT
+        pip install . --quiet --target "$STAGE"
+        printf 'from systemd_search import main\nmain()\n' > "$STAGE/__main__.py"
+        python3 -m zipapp "$STAGE" \
+          --output "{{ playbook_dir }}/files/systemd-search" \
+          --python '/usr/bin/env python3'
+        chmod +x "{{ playbook_dir }}/files/systemd-search"
+      args:
+        chdir: "{{ lookup('env', 'MOLECULE_PROJECT_DIRECTORY') }}"
