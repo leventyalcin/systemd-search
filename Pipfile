@@ -4,10 +4,11 @@ verify_ssl = true
 name = "pypi"
 
 [packages]
-# systemd-search itself has no runtime dependencies
+# No runtime dependencies. Install the package for local use with: pip install -e .
 
 [dev-packages]
 pytest = ">=8.0"
+build = ">=1.0"
 molecule = ">=6.0"
 molecule-plugins = {extras = ["docker"], version = ">=23.5"}
 ansible-core = ">=2.15,<2.16"
